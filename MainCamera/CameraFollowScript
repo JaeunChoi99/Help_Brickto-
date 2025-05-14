@@ -1,0 +1,66 @@
+// 외부에서 수정 가능한 변수
+this.cameraSpeed = 5;         // 카메라 이동 속도
+this.mouseSensitivity = 0.06; // 마우스 민감도
+this.cameraDistance = 4;      // Brickto와 카메라 사이의 거리
+this.maxMouseMovement = 20;   // 마우스 이동 속도 최대값
+this.maxRotationX = 45;       // 상하 회전 각도 제한
+this.rotationSmoothness = 0.1; // 회전 부드러움 정도
+
+let brickto;
+let rotationY = 0;  // 현재 좌우 회전 각도
+let rotationX = 0;  // 현재 상하 회전 각도
+let targetRotationY = 0; // 목표 좌우 회전 각도
+let targetRotationX = 0; // 목표 상하 회전 각도
+
+function Start() {
+    brickto = WORLD.getObject("Brickto");
+    if (!brickto) {
+        console.error("Brickto 오브젝트를 찾을 수 없습니다.");
+    }
+
+    document.body.requestPointerLock = document.body.requestPointerLock || document.body.mozRequestPointerLock;
+    document.body.requestPointerLock();
+}
+
+function OnPointerMove(event) {
+    if (document.pointerLockElement === document.body) {
+        // 마우스 이동 값을 maxMouseMovement로 제한
+        const movementX = Math.max(-this.maxMouseMovement, Math.min(this.maxMouseMovement, event.movementX));
+        const movementY = Math.max(-this.maxMouseMovement, Math.min(this.maxMouseMovement, event.movementY));
+        
+        // 목표 회전 각도 조정 (부드러운 회전을 위해 목표 각도만 변경)
+        targetRotationY -= movementX * this.mouseSensitivity;
+        targetRotationX -= movementY * this.mouseSensitivity;
+        
+        // 상하 회전 각도 제한 적용
+        targetRotationX = Math.max(-this.maxRotationX, Math.min(this.maxRotationX, targetRotationX));
+    }
+}
+
+function Update(dt) {
+    if (brickto) {
+        // 현재 회전 각도를 목표 회전 각도로 서서히 보간하여 부드러운 회전 구현
+        rotationY = THREE.MathUtils.lerp(rotationY, targetRotationY, this.rotationSmoothness);
+        rotationX = THREE.MathUtils.lerp(rotationX, targetRotationX, this.rotationSmoothness);
+
+        // Brickto의 위치를 기준으로 카메라의 고정 위치 계산
+        const cameraPosition = new THREE.Vector3();
+        brickto.getWorldPosition(cameraPosition);
+        
+        // Brickto의 뒤쪽 고정 위치 설정
+        cameraPosition.x -= Math.sin(THREE.MathUtils.degToRad(rotationY)) * this.cameraDistance;
+        cameraPosition.z -= Math.cos(THREE.MathUtils.degToRad(rotationY)) * this.cameraDistance;
+        cameraPosition.y += 1.6; // 일정한 높이 유지
+
+        // 카메라 위치 부드럽게 업데이트
+        this.position.lerp(cameraPosition, dt * this.cameraSpeed);
+
+        // 카메라가 부드럽게 Brickto를 바라보도록 설정
+        const lookAtPosition = new THREE.Vector3(
+            cameraPosition.x + Math.sin(THREE.MathUtils.degToRad(rotationY)) * this.cameraDistance,
+            cameraPosition.y + Math.sin(THREE.MathUtils.degToRad(rotationX)),
+            cameraPosition.z + Math.cos(THREE.MathUtils.degToRad(rotationY)) * this.cameraDistance
+        );
+        this.lookAt(lookAtPosition);
+    }
+}

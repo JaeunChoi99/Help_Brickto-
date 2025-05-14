@@ -1,0 +1,53 @@
+// 외부에서 설정 가능한 변수
+this.respawnTime = 14000;        // 오일 트랩 재생성 시간 (밀리초)
+this.trapDisappearTime = 2000;  // 오일 트랩이 사라지는 시간 (밀리초)
+this.oilHeightOffset = -1.2;    // 오일의 높이 오프셋
+
+// 오일 오브젝트 참조
+let oil = null;
+const oilCan = this;
+let trapVisible = true;
+let initialPosition;
+
+function Start() {
+    oil = WORLD.getObject("Oil");
+
+    if (oil) {
+        initialPosition = oilCan.position.clone();
+        oil.visible = false;
+    } else {
+        console.error("Oil 오브젝트를 찾을 수 없습니다.");
+    }
+}
+
+function Update(dt) {
+    if (!oil) {
+        oil = WORLD.getObject("Oil");
+        if (oil) {
+            initialPosition = oilCan.position.clone();
+            oil.visible = false;
+            console.log("Oil 객체가 로드되었습니다.");
+        }
+        return;
+    }
+}
+
+// 오일 트랩을 활성화하여 오일 생성
+this.activateOil = function() {
+    if (!trapVisible || !oil) return;
+
+    trapVisible = false;
+    setTimeout(() => {
+        oilCan.visible = false;
+
+        oil.position.set(initialPosition.x, initialPosition.y + this.oilHeightOffset, initialPosition.z);
+        oil.visible = true;
+    }, this.trapDisappearTime);
+
+    setTimeout(() => {
+        if (!oil.visible) {
+            oilCan.visible = true;
+            trapVisible = true;
+        }
+    }, this.respawnTime);
+}

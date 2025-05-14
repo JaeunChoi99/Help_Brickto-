@@ -1,0 +1,43 @@
+// 외부에서 설정 가능한 변수
+this.oilHeightOffset = -1.2; // 오일의 높이 오프셋
+let oilCan = this; // 현재 OilCan 오브젝트 참조
+
+let pig; // 돼지 오브젝트 참조
+
+function Start() {
+    pig = WORLD.getObject("Pig"); // 돼지 오브젝트 가져오기
+
+    if (!pig) {
+        console.error("Pig 오브젝트를 찾을 수 없습니다.");
+    }
+
+    // 초기에는 오일이 보이지 않게 설정
+    oilCan.visible = false;
+}
+
+function Update(dt) {
+    if (!pig || !oilCan.visible) return;
+
+    // 돼지와 오일 간 충돌 감지
+    const oilBox = new THREE.Box3().setFromObject(oilCan); // 오일의 BoundingBox 생성
+    const pigBox = new THREE.Box3().setFromObject(pig); // 돼지의 BoundingBox 생성
+
+    if (oilBox.intersectsBox(pigBox)) { // 충돌 감지
+        console.log("오일이 돼지와 충돌했습니다. 돼지에게 기절 신호를 보냅니다.");
+        
+        // 돼지의 기절 함수를 호출
+        pig.applyStun(5300); // 돼지를 3초 동안 기절시킴
+        
+        // 오일 비활성화
+        oilCan.visible = false;
+        setTimeout(() => {
+            console.log("오일이 사라졌습니다.");
+        }, 1000);
+    }
+}
+
+// 오일 트랩을 활성화하여 오일 생성
+this.activateOil = function() {
+    oilCan.visible = true; // 오일을 보이도록 설정
+    console.log("오일이 활성화되었습니다.");
+}

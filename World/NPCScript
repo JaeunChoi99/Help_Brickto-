@@ -1,0 +1,43 @@
+let npcList = []; // NPC 객체 배열
+let player;
+
+// 게임 시작 시 NPC 설정
+function Start() {
+    // 플레이어 객체 가져오기
+    player = WORLD.getObject("Brickto");
+
+    // NPC 객체들 가져오기 (필요한 NPC 이름을 추가하세요)
+    npcList.push(WORLD.getObject("NPC1"));
+    npcList.push(WORLD.getObject("NPC2"));
+    npcList.push(WORLD.getObject("NPC3")); // 추가할 NPC가 있다면 여기에 계속 추가
+
+    // 객체가 없을 경우 에러 출력
+    if (!player || npcList.some(npc => !npc)) {
+        console.error("필요한 객체(Brickto 또는 NPC)를 찾을 수 없습니다.");
+        return;
+    }
+
+    // NPC 애니메이션 및 설정
+    npcList.forEach(npc => {
+        // 애니메이션 믹서를 각 NPC에 설정
+        const mixer = new THREE.AnimationMixer(npc);
+        const helpAnimation = mixer.clipAction(THREE.AnimationClip.findByName(npc.animations, "Npc_Help"));
+
+        // 애니메이션 반복 설정 및 재생
+        helpAnimation.play();
+        helpAnimation.setLoop(THREE.LoopRepeat); // 애니메이션 반복 재생
+
+        npc.mixer = mixer; // mixer를 npc 객체에 저장하여 Update에서 사용
+    });
+}
+
+// 매 프레임마다 실행되는 함수
+function Update(dt) {
+    if (!player) return;
+
+    // NPC가 Brickto를 바라보고, 애니메이션이 업데이트되도록 설정
+    npcList.forEach(npc => {
+        npc.lookAt(player.position); // Brickto를 바라보게 설정
+        npc.mixer.update(dt); // 애니메이션 업데이트
+    });
+}

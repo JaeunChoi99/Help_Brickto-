@@ -1,0 +1,104 @@
+// 외부에서 설정 가능한 변수
+this.maxGauge = 100;              // 게이지 최대값
+this.gaugeIncreaseRate = 20;      // 게이지 증가 속도
+this.gaugeDecreaseRate = 5;       // 게이지 감소 속도
+this.interactionDistance = 2.0;   // 상호작용 가능한 거리
+this.gaugeScale = 1.0;            // 게이지 크기 비율
+
+// 자물쇠 오브젝트 참조
+let player = null;
+let camera = null; // 카메라 객체 참조
+let gaugeBar = null; // 현재 차오르는 초록색 게이지 바
+let currentGauge = 0;
+let isInteracting = false;
+const lockObject = this; // 자물쇠 객체 자체를 참조
+
+// 전역 변수 추가
+GLOBAL.isLockCleared = false; // 자물쇠 해제 여부를 나타내는 전역 변수
+
+function Start() {
+    // 플레이어와 카메라 객체 가져오기
+    player = WORLD.getObject("Brickto");
+    camera = WORLD.getObject("MainCamera"); // 카메라 객체 가져오기
+
+    // 검은색 기본 게이지 바 생성
+    const backgroundGeometry = new THREE.PlaneGeometry(this.gaugeScale, 0.1 * this.gaugeScale);
+    const backgroundMaterial = new THREE.MeshBasicMaterial({ color: 0x000000, transparent: false });
+    gaugeBar = new THREE.Mesh(backgroundGeometry, backgroundMaterial);
+    WORLD.add(gaugeBar); // 월드에 게이지 기본 바 추가
+    gaugeBar.visible = true; // 항상 보이도록 설정
+
+    // 초록색 게이지 바 생성 (왼쪽에서 오른쪽으로 차오르도록 작게 시작)
+    const fillGeometry = new THREE.PlaneGeometry(this.gaugeScale, 0.1 * this.gaugeScale);
+    const fillMaterial = new THREE.MeshBasicMaterial({ color: 0x00ff00, transparent: true });
+    const fillBar = new THREE.Mesh(fillGeometry, fillMaterial);
+    gaugeBar.add(fillBar); // 초록색 게이지 바를 기본 바의 자식으로 추가
+    fillBar.position.set(-0.5 * this.gaugeScale, 0, 0.01); // 왼쪽에 위치시키고 Z축으로 약간 앞으로 이동
+
+    if (!player || !camera) {
+        console.error("플레이어 또는 카메라 객체를 찾을 수 없습니다.");
+    }
+}
+
+function Update(dt) {
+    if (!player || !lockObject || !gaugeBar || !camera) return; // 객체가 없으면 함수 종료
+
+    // 플레이어와 자물쇠 간의 거리 계산
+    const distanceToPlayer = lockObject.position.distanceTo(player.position);
+
+    // 상호작용 거리 내에 있고 상호작용 중일 때
+    if (distanceToPlayer < this.interactionDistance && isInteracting) {
+        // 게이지 증가
+        currentGauge += this.gaugeIncreaseRate * dt;
+        currentGauge = Math.min(currentGauge, this.maxGauge); // 최대 게이지 값 제한
+
+        // 초록색으로 설정
+        gaugeBar.children[0].material.color.setHex(0x00ff00); // 초록색
+        gaugeBar.children[0].material.opacity = 1;
+    } else {
+        // 상호작용이 중단되면 게이지 감소
+        currentGauge -= this.gaugeDecreaseRate * dt;
+        currentGauge = Math.max(currentGauge, 0); // 최소 게이지 값 제한
+
+        // 빨간색으로 변경 및 깜빡거리게 설정
+        gaugeBar.children[0].material.color.setHex(0xff0000); // 빨간색
+        gaugeBar.children[0].material.opacity = 0.5 + 0.5 * Math.sin(Date.now() * 0.01); // 깜빡임 효과
+    }
+
+    // 게이지 비율에 따라 초록색 게이지 바 길이 조절
+    const gaugeRatio = currentGauge / this.maxGauge;
+    gaugeBar.children[0].scale.x = gaugeRatio; // 현재 게이지 크기 조절
+    gaugeBar.children[0].position.x = -0.5 * this.gaugeScale + 0.5 * this.gaugeScale * gaugeRatio; // 왼쪽에서 오른쪽으로 차오르게 설정
+
+    // 게이지 막대를 자물쇠 위에 배치하고, 항상 카메라를 바라보게 설정
+    gaugeBar.position.set(lockObject.position.x, lockObject.position.y + 1, lockObject.position.z);
+    gaugeBar.lookAt(camera.position);
+
+    // 게이지가 다 찼을 때 자물쇠 삭제
+    if (currentGauge >= this.maxGauge) {
+        removeLockObject();
+    }
+}
+
+// E 키를 누를 때 상호작용 시작
+function OnKeyDown(event) {
+    if (event.key === 'e') {
+        isInteracting = true;
+    }
+}
+
+// E 키를 떼면 상호작용 중단
+function OnKeyUp(event) {
+    if (event.key === 'e') {
+        isInteracting = false;
+    }
+}
+
+function removeLockObject() {
+    console.log("자물쇠가 해제되었습니다!");
+    WORLD.remove(this); // 자물쇠 오브젝트 삭제
+    gaugeBar.visible = false; // 게이지 막대 숨김
+
+    // 자물쇠가 해제되었음을 알림
+    GLOBAL.isLockCleared = true;
+}

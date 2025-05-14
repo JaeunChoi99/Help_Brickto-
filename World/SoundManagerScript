@@ -1,0 +1,51 @@
+// SoundManager 객체 정의 및 GLOBAL에 등록
+const SoundManager = {
+    sounds: {},
+
+    // 사운드 추가
+    addSound: function(name, soundObjectName) {
+        const soundObject = WORLD.getObject(soundObjectName);
+        if (soundObject) {
+            this.sounds[name] = soundObject;
+        } else {
+            console.warn(`사운드 객체 "${soundObjectName}"를 찾을 수 없습니다.`);
+        }
+    },
+
+    // 사운드 재생
+    playSound: function(name) {
+        const sound = this.sounds[name];
+        if (sound) {
+            sound.play();
+        } else {
+            console.warn(`"${name}" 사운드가 존재하지 않습니다.`);
+        }
+    },
+
+    // 사운드 중지
+    stopSound: function(name) {
+        const sound = this.sounds[name];
+        if (sound) {
+            sound.stop();
+        } else {
+            console.warn(`"${name}" 사운드가 존재하지 않습니다.`);
+        }
+    },
+
+    // 모든 사운드 정지
+    stopAll: function() {
+        for (let key in this.sounds) {
+            this.sounds[key].stop();
+        }
+    }
+};
+
+// GLOBAL 객체에 SoundManager 등록
+GLOBAL.SoundManager = SoundManager;
+
+// 게임 시작 시 호출되는 함수
+function Start() {
+    // 필요한 사운드를 SoundManager에 추가
+    GLOBAL.SoundManager.addSound("배경음", "BackgroundMusic");
+    GLOBAL.SoundManager.addSound("점프", "JumpSound");
+}

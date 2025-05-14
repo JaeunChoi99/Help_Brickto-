@@ -1,0 +1,108 @@
+// 필요한 객체 선언
+let pig, player, gameOverText, resetButton, clearUI, timerText;
+const detectionRange = 2.0; // 돼지가 플레이어를 잡는 거리
+let startTime = 0; // 타이머 시작 시간
+let elapsedTime = 0; // 경과 시간 저장 변수
+
+function Start() {
+
+    GLOBAL.sound
+
+    // 돼지, 플레이어, 게임 오버 UI, 리셋 버튼, 클리어 UI, 타이머 UI 가져오기
+    pig = WORLD.getObject("Pig");
+    player = WORLD.getObject("Brickto");
+    gameOverText = GUI.getObject("GameOverText");
+    resetButton = GUI.getObject("ResetButton");
+    clearUI = GUI.getObject("ClearUI");
+    timerText = GUI.getObject("TimerText"); // 타이머를 표시할 텍스트 UI 객체
+
+    if (!pig || !player || !gameOverText || !resetButton || !clearUI || !timerText) {
+        console.error("필요한 객체를 찾을 수 없습니다.");
+        return;
+    }
+
+    gameOverText.visible = false;
+    clearUI.visible = false;
+    resetButton.visible = false;
+
+    resetButton.onClick(() => {
+        resetGame();
+    });
+
+    // 타이머 초기화
+    startTime = Date.now();
+    timerText.setText("시간: 0초");
+
+    GLOBAL.isGameCleared = false;
+    GLOBAL.isGameOver = false;
+
+    document.body.requestPointerLock();
+}
+
+function Update(dt) {
+    if (GLOBAL.isGameCleared || GLOBAL.isGameOver) return;
+
+    if (!pig || !player) return;
+
+    // 타이머 업데이트
+    elapsedTime = ((Date.now() - startTime) / 1000).toFixed(1); // 소수점 1자리까지 표시
+    timerText.setText("시간: " + elapsedTime + "초");
+
+    const distanceToPlayer = pig.position.distanceTo(player.position);
+
+    if (distanceToPlayer < detectionRange) {
+        triggerGameOver();
+    }
+
+    if (GLOBAL.isLockCleared && !GLOBAL.isGameCleared) {
+        triggerClear();
+        GLOBAL.isLockCleared = false;
+    }
+}
+
+// 게임 오버 처리 함수
+function triggerGameOver() {
+    if (GLOBAL.isGameOver) return;
+    console.log("Game Over - 돼지가 플레이어를 잡았습니다!");
+
+    gameOverText.visible = true;
+    resetButton.visible = true;
+    GLOBAL.isGameOver = true;
+
+    // 게임 오버 시 최종 시간 표시
+    timerText.setText("최종 시간: " + elapsedTime + "초");
+    document.exitPointerLock();
+}
+
+// 게임 클리어 처리 함수
+function triggerClear() {
+    if (GLOBAL.isGameCleared) return;
+    console.log("게임 클리어!");
+
+    clearUI.visible = true;
+    resetButton.visible = true;
+    GLOBAL.isGameCleared = true;
+
+    // 클리어 시 최종 시간 표시
+    timerText.setText("최종 시간: " + elapsedTime + "초");
+    document.exitPointerLock();
+}
+
+// 게임 초기화 함수
+function resetGame() {
+    console.log("게임 리셋 중...");
+
+    GLOBAL.isGameOver = false;
+    GLOBAL.isGameCleared = false;
+    gameOverText.visible = false;
+    clearUI.visible = false;
+    resetButton.visible = false;
+
+    pig.position.set(0, 0.8, 0);
+    player.position.set(22, 0, 1);
+
+    startTime = Date.now(); // 타이머 리셋
+    timerText.setText("시간: 0초");
+
+    document.body.requestPointerLock();
+}

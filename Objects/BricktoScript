@@ -1,0 +1,182 @@
+const settings = {
+   moveSpeed: 5,
+   runSpeed: 7,
+   maxStamina: 100,
+   staminaDrainRate: 20,
+   staminaRecoveryRate: 10,
+   staminaFadeOutRate: 0.5,
+   staminaBarColor: 0xffff00,
+   staminaBarHeight: 1.25,
+   mouseSensitivity: 0.06,
+   maxMouseMovement: 30,
+   maxRotationX: 45,
+   interactionRange: 2
+};
+
+let brickto, staminaBar, mixer;
+let oilCans = []; // OilCan 객체 배열
+let isRunning = false, stamina = settings.maxStamina, isInteracting = false, canMove = true;
+let rotationY = 0, rotationX = 0;
+const keys = { w: false, a: false, s: false, d: false };
+const direction = new THREE.Vector3();
+const actions = {};
+
+function Start() {
+   brickto = WORLD.getObject("Brickto");
+   const camera = WORLD.getObject("MainCamera");
+   oilCans = [
+       WORLD.getObject("OilCan"),
+       WORLD.getObject("OilCan1"),
+       WORLD.getObject("OilCan2"),
+       WORLD.getObject("OilCan3")
+   ];
+
+   // 객체 초기화 확인
+   if (!brickto || !camera || oilCans.some(oil => !oil)) {
+       console.error("Brickto, MainCamera 또는 OilCan 객체를 찾을 수 없습니다.");
+       return;
+   }
+
+   mixer = new THREE.AnimationMixer(brickto);
+   actions.idle = mixer.clipAction(THREE.AnimationClip.findByName(brickto.animations, "Brickto_Idle"));
+   actions.walk = mixer.clipAction(THREE.AnimationClip.findByName(brickto.animations, "Brickto_Walk"));
+   actions.run = mixer.clipAction(THREE.AnimationClip.findByName(brickto.animations, "Brickto_Run"));
+   actions.trap = mixer.clipAction(THREE.AnimationClip.findByName(brickto.animations, "Brickto_Idle.001"));
+   actions.idle.play();
+
+   // 스태미너 바 생성
+   const barGeometry = new THREE.PlaneGeometry(1, 0.1);
+   const barMaterial = new THREE.MeshBasicMaterial({ color: settings.staminaBarColor, transparent: true, opacity: 1 });
+   staminaBar = new THREE.Mesh(barGeometry, barMaterial);
+   WORLD.add(staminaBar);
+
+   document.body.requestPointerLock();
+}
+
+function Update(dt) {
+     if (GLOBAL.isGameCleared) return; // 게임이 클리어되면 Update 함수 중단
+    
+   if (!canMove && !isInteracting) return;
+
+   const camera = WORLD.getObject("MainCamera");
+   if (!camera || !brickto || !staminaBar) return;
+
+   // 스태미너 바 위치 설정
+   const bricktoPosition = new THREE.Vector3();
+   brickto.getWorldPosition(bricktoPosition);
+   staminaBar.position.set(bricktoPosition.x, bricktoPosition.y + settings.staminaBarHeight, bricktoPosition.z);
+   staminaBar.lookAt(camera.position);
+
+   // 방향 설정 및 이동
+   const forward = new THREE.Vector3();
+   camera.getWorldDirection(forward);
+   forward.y = 0;
+   forward.normalize();
+
+   const right = new THREE.Vector3();
+   right.crossVectors(forward, new THREE.Vector3(0, 1, 0)).normalize();
+
+   direction.set(0, 0, 0);
+   if (keys.w) direction.add(forward);
+   if (keys.s) direction.sub(forward);
+   if (keys.a) direction.sub(right.multiplyScalar(0.5));
+   if (keys.d) direction.add(right.multiplyScalar(0.5));
+
+   // 스태미너 관리
+   if (isRunning && stamina > 0) {
+       stamina -= settings.staminaDrainRate * dt;
+       stamina = Math.max(stamina, 0);
+   } else if (!isRunning && stamina < settings.maxStamina) {
+       stamina += settings.staminaRecoveryRate * dt;
+       stamina = Math.min(stamina, settings.maxStamina);
+   }
+
+   // 스태미너 바 업데이트
+   const staminaRatio = stamina / settings.maxStamina;
+   staminaBar.scale.x = staminaRatio;
+   staminaBar.material.opacity = stamina === settings.maxStamina ? 0 : 1;
+
+   // 이동 처리
+   if (!isInteracting && direction.lengthSq() > 0) {
+       direction.normalize();
+       let currentSpeed = (isRunning && stamina > 0) ? settings.runSpeed : settings.moveSpeed;
+       if (rotationY !== 0 || rotationX !== 0) currentSpeed *= 0.8;
+       brickto.position.add(direction.multiplyScalar(currentSpeed * dt));
+       const targetRotation = Math.atan2(direction.x, direction.z);
+       brickto.rotation.y += (targetRotation - brickto.rotation.y) * 0.1;
+       playAnimation(isRunning && stamina > 0 ? "run" : "walk");
+   } else if (!isInteracting) {
+       playAnimation("idle");
+   }
+
+   if (mixer) mixer.update(dt);
+}
+
+// 애니메이션 실행 함수
+function playAnimation(name) {
+   const action = actions[name];
+   if (!action || action.isRunning()) return;
+   mixer.stopAllAction();
+   action.reset().play();
+}
+
+// 상호작용 함수
+function interactWithOilCan() {
+   for (const oil of oilCans) {
+       const distanceToOil = brickto.position.distanceTo(oil.position);
+
+       if (distanceToOil <= settings.interactionRange && oil.activateOil) {
+           isInteracting = true;
+           canMove = false;
+           playAnimation("trap");
+           oil.activateOil();
+
+           setTimeout(() => {
+               isInteracting = false;
+               canMove = true;
+               playAnimation("idle");
+           }, 2000);
+
+           break;
+       }
+   }
+}
+
+// 키 입력 이벤트 핸들러
+function OnKeyDown(event) {
+   if (event.key === 'w') keys.w = true;
+   if (event.key === 'a') keys.a = true;
+   if (event.key === 's') keys.s = true;
+   if (event.key === 'd') keys.d = true;
+
+   if (event.key === 'e') interactWithOilCan();
+   console.log("Key down:", keys);
+}
+
+function OnKeyUp(event) {
+   if (event.key === 'w') keys.w = false;
+   if (event.key === 'a') keys.a = false;
+   if (event.key === 's') keys.s = false;
+   if (event.key === 'd') keys.d = false;
+   console.log("Key up:", keys);
+}
+
+// 마우스 클릭 및 움직임 이벤트
+function OnPointerDown(event) {
+   if (event.button === 2) isRunning = true;
+}
+
+function OnPointerUp(event) {
+   if (event.button === 2) isRunning = false;
+}
+
+function OnPointerMove(event) {
+   if (document.pointerLockElement === document.body) {
+       const movementX = Math.max(-settings.maxMouseMovement, Math.min(settings.maxMouseMovement, event.movementX));
+       const movementY = Math.max(-settings.maxMouseMovement, Math.min(settings.maxMouseMovement, event.movementY));
+
+       rotationY -= movementX * settings.mouseSensitivity;
+       rotationX -= movementY * settings.mouseSensitivity;
+       rotationX = Math.max(-settings.maxRotationX, Math.min(settings.maxRotationX, rotationX));
+   }
+}

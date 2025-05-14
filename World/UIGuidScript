@@ -1,0 +1,69 @@
+m
+    babyUI = GUI.getObject("(b73)");
+    
+    if (!guideTextUI) {
+        console.error("안내 UI 객체를 찾을 수 없습니다.");
+        return;
+    }
+    
+    if (!babyUI) {
+        console.error("자식 UI 객체 '(b73)'를 찾을 수 없습니다.");
+        return;
+    }
+    
+    // 시작할 때 안내 UI 표시
+    guideTextUI.visible = true;
+    babyUI.visible = true;
+
+    // 일정 시간이 지나면 안내 UI를 화면에서 숨김
+    setTimeout(() => {
+        removeGuideUI();
+    }, displayDuration);
+
+
+// 필요 시 특정 이벤트 발생 시 호출
+function showGuideUI() {
+    if (!guideTextUI) {
+        console.error("안내 UI 객체를 찾을 수 없습니다.");
+        return;
+    }
+
+    if (!babyUI) {
+        console.error("자식 UI 객체 '(b73)'를 찾을 수 없습니다.");
+        return;
+    }
+
+    // 안내 UI 표시
+    guideTextUI.visible = true;
+    babyUI.visible = true;
+
+    // 일정 시간이 지나면 안내 UI를 화면에서 숨김
+    setTimeout(() => {
+        removeGuideUI();
+    }, displayDuration);
+}
+
+// 안내 UI와 자식 텍스트를 화면에서 숨기는 함수
+function removeGuideUI() {
+    if (guideTextUI) {
+        // 안내 UI 숨기기
+        guideTextUI.visible = false;
+        if (babyUI) {
+            babyUI.visible = false; // 자식 (b73) 숨기기
+        }
+
+        // 자식 요소 스타일을 숨기기
+        const childElements = guideTextUI.getChildren();
+        childElements.forEach(child => {
+            child.visible = false; // 자식 요소 숨기기
+            if (child.name === "(b73)") {
+                guideTextUI.removeChild(child); // 자식 (b73) 제거
+            }
+        });
+
+        // 객체를 null로 설정
+        guideTextUI = null;
+        babyUI = null;
+    }
+}
+
